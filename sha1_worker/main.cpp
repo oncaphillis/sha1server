@@ -8,7 +8,7 @@
 
 int _m=0;
 
-class Sha1Machine {
+class Sha1Worker {
 public:
     static const size_t FarmSize = 256;
     static const size_t KeySize = 20;
@@ -21,7 +21,7 @@ public:
     std::stack<SHA_CTX> _ctxv;
 
 public:
-    Sha1Machine(const unsigned char *data,size_t len,size_t zeros=1)
+    Sha1Worker(const unsigned char *data,size_t len,size_t zeros=1)
         : _zeros(zeros) {
         SHA1_Init(&_ctx);
         SHA1_Update(&_ctx,data,len);
@@ -29,7 +29,7 @@ public:
         check(_ctx);
     }
 
-    Sha1Machine(const std::string & s,size_t zeros)
+    Sha1Worker(const std::string & s,size_t zeros)
         : Sha1Machine((unsigned char *)s.c_str(),s.length(),zeros) {
     }
 
@@ -112,7 +112,7 @@ private:
 int main()
 {
     // Sha1Machine sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",9);
-    Sha1Machine sm("X",9);
+    Sha1Worker sm("X",9);
     sm.run();
 
     std::cerr << " -- ";
