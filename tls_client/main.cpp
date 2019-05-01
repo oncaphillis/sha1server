@@ -42,9 +42,17 @@ public:
         ip::tcp::resolver rsv(_ioc);
         ip::tcp::resolver::results_type rst = rsv.resolve(ip::tcp::resolver::query(srv, prt)); ;
 
-        if(!rst.empty()) {
-            _sck->lowest_layer().connect(rst.begin()->endpoint());
-            _sck->handshake(ssl::stream_base::client);
+        try {
+            if(!rst.empty()) {
+                const ip::tcp::resolver::endpoint_type & e = rst.begin()->endpoint();
+                std::cerr << "connecting to "<< e.address().to_string() << "/" << e.port() << std::endl;
+                _sck->lowest_layer().connect(e);
+                std::cerr << "handshaking with "<< rst.begin()->endpoint().address().to_string() << std::endl;
+                _sck->handshake(ssl::stream_base::client);
+                std::cerr << "handshaking done "<< rst.begin()->endpoint().address().to_string() << std::endl;
+            }
+        } catch(std::exception & ex) {
+            std::cerr << "EX:" << ex.what() << std::endl;
         }
     }
 
@@ -84,18 +92,15 @@ private:
 
 int main() {
     // 8082, 8445, 49154, 3480, 65533, 3335
-    TlsClient clt("18.202.148.130", "3335");
-
-    // TlsClient clt("www.google.com", "443");
-
-    std::cerr << " Q1 " << std::endl;
-
-    clt.write("\ņ");
+    // TlsClient clt("18.202.148.130", "3335");
+    TlsClient clt("www.google.com", "443");
 
     if(!clt) {
         std::cerr << "Failed to create proper TlsClient" << std::endl;
         ::exit(1);
     }
+
+    clt.write("GET /\n");
 
     std::string l;
 

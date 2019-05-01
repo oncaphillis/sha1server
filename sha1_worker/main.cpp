@@ -5,8 +5,8 @@
 #include <openssl/sha.h>
 #include <ctype.h>
 #include <stack>
+#include <vector>
 
-int _m=0;
 
 class Sha1Worker {
 public:
@@ -20,6 +20,7 @@ public:
     SHA_CTX _ctx;
     std::stack<SHA_CTX> _ctxv;
 
+
 public:
     Sha1Worker(const unsigned char *data,size_t len,size_t zeros=1)
         : _zeros(zeros) {
@@ -30,7 +31,7 @@ public:
     }
 
     Sha1Worker(const std::string & s,size_t zeros)
-        : Sha1Machine((unsigned char *)s.c_str(),s.length(),zeros) {
+        : Sha1Worker((unsigned char *)s.c_str(),s.length(),zeros) {
     }
 
     bool run() {
@@ -47,25 +48,31 @@ public:
     }
 
 private:
+    static const std::vector<uint8_t>  alphabet() {
+        std::vector<uint8_t> _a;
+        for(uint8_t c='a';c<='z';c++) {
+            if(c!='\r' && c!='\t' && c!='\n') {
+                _a.push_back(c);
+                std::cerr << std::hex << std::setw(2) << std::setfill('0') << int(c) << " ";
+            }
+
+        }
+        std::cerr << std::endl << " *** " << std::endl;
+        return _a;
+    }
 
     bool run(const SHA_CTX & ctxi,std::string s,int r=0) {
 
-        if(r > _m) {
-            _m = r;
-        }
-
-        for(int i='a';i<'z';i++) {
-            uint8_t c=uint8_t(i);
+        for(const auto & c : _alphabet) {
             SHA_CTX ctxr = ctxi;
             SHA1_Update(&ctxr,&c,1);
-            std::cerr << "'" << s+(char)c << "'" << std::endl;
+            std::cerr << "'" << (s+(char)c) << "'" << std::endl;
             if( check(ctxr) ) {
-                _result = s+(char)c;
+                _result = s + (char) c ;
                 return true;
             }
         }
-
-        std::cerr << "------------------------" << std::endl;
+        std::cerr << "***" << std::endl;
 
         for(int i='a';i<'z';i++) {
             SHA_CTX ctxr = ctxi;
@@ -106,8 +113,12 @@ private:
         }
         return false;
     }
+    static const std::vector<uint8_t> _alphabet;
     key_t _md;
 };
+
+
+const std::vector<uint8_t> Sha1Worker::_alphabet = Sha1Worker::alphabet();
 
 int main()
 {
