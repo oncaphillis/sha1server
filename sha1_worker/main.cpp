@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stack>
 #include <vector>
+#include <functional>
 
 
 class Sha1Worker {
@@ -16,15 +17,16 @@ public:
 
     bool _success = false;
     int _zeros = 0;
-    std::string _result;
+    std::string _prefix;
     SHA_CTX _ctx;
-    std::stack<SHA_CTX> _ctxv;
+    std::vector<SHA_CTX> _ctxv;
+
 public:
     Sha1Worker(const unsigned char *data,size_t len,size_t zeros=1)
         : _zeros(zeros) {
         SHA1_Init(&_ctx);
         SHA1_Update(&_ctx,data,len);
-        _result=std::string((char *)data,len);
+        _prefix=std::string((char *)data,len);
         check(_ctx);
     }
 
@@ -32,19 +34,21 @@ public:
         : Sha1Worker((unsigned char *)s.c_str(),s.length(),zeros) {
     }
 
-    bool run(std::string s="") {
-        if(!_alphabet.empty()) {
-            while(true)  {
-                s += (char)_alphabet[0];
-                for(int i=0;i<s.length();i++) {
-                    for(auto c : _alphabet) {
-                        s[i] = (char)c;
-                        std::cerr << "'" << s << "'" << std::endl;
-                    }
-                }
+    bool run() {
+        // Generate all permutations of a given length
+        std::function<bool (std::string,size_t)> fnc = [&](std::string s,size_t n=0) -> bool {
+            return false;
+        };
+
+        std::vector<SHA_CTX> st(_alphabet.size());
+
+        for(int i=1;i<4;i++) {
+            if(fnc(std::string(i,' '))) {
+                return true;
             }
+
         }
-        return true;
+        return false;
     }
 
     const key_t & key() const {
@@ -52,7 +56,7 @@ public:
     }
 
     const std::string & result() const {
-        return _result;
+        return _prefix;
     }
 
 private:
@@ -74,7 +78,7 @@ private:
             std::cerr << "*"
                          "'" << (s+static_cast<char>(c)) << "'" << std::endl;
             if( check(ctxr) ) {
-                _result = s + static_cast<char>(c) ;
+                _prefix = s + static_cast<char>(c) ;
                 return true;
             }
         }
@@ -131,9 +135,8 @@ const std::vector<uint8_t> Sha1Worker::_alphabet(Sha1Worker::alphabet());
 int main()
 {
     // Sha1Machine sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",9);
-    Sha1Worker sm("X",3);
-    sm.run();
-    ::exit(1);
+    Sha1Worker sm("prefiX",3);
+    std::cerr << " @@ " << sm.run() << " @@ " << std::endl;
 
     std::cerr << " -- ";
     for( const auto & c : sm.key() ) {
