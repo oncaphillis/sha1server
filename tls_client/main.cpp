@@ -44,12 +44,15 @@ public:
 
         try {
             if(!rst.empty()) {
+
+                boost::system::error_code ec;
+
                 const ip::tcp::resolver::endpoint_type & e = rst.begin()->endpoint();
                 std::cerr << "connecting to "<< e.address().to_string() << "/" << e.port() << std::endl;
                 _sck->lowest_layer().connect(e);
                 std::cerr << "handshaking with "<< rst.begin()->endpoint().address().to_string() << std::endl;
-                _sck->handshake(ssl::stream_base::client);
-                std::cerr << "handshaking done "<< rst.begin()->endpoint().address().to_string() << std::endl;
+                _sck->handshake(ssl::stream_base::client,ec);
+                std::cerr << "handshaking done "<< rst.begin()->endpoint().address().to_string() << "/" << ec << std::endl;
             }
         } catch(std::exception & ex) {
             std::cerr << "EX:" << ex.what() << std::endl;
@@ -77,7 +80,7 @@ public:
     bool write(const std::string & l) {
         boost::system::error_code error;
         size_t n = asio::write( *_sck, asio::buffer( (l+'\n').c_str(),(l+'\n').size()), error );
-        if( error ) {
+     if( error ) {
             return false;
         }
         return true;
@@ -92,15 +95,13 @@ private:
 
 int main() {
     // 8082, 8445, 49154, 3480, 65533, 3335
-    // TlsClient clt("18.202.148.130", "3335");
-    TlsClient clt("www.google.com", "443");
+    TlsClient clt("18.202.148.130", "3335");
+    // TlsClient clt("www.google.com", "443");
 
     if(!clt) {
         std::cerr << "Failed to create proper TlsClient" << std::endl;
         ::exit(1);
     }
-
-    clt.write("GET /\n");
 
     std::string l;
 

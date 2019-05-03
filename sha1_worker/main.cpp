@@ -19,8 +19,6 @@ public:
     std::string _result;
     SHA_CTX _ctx;
     std::stack<SHA_CTX> _ctxv;
-
-
 public:
     Sha1Worker(const unsigned char *data,size_t len,size_t zeros=1)
         : _zeros(zeros) {
@@ -34,9 +32,19 @@ public:
         : Sha1Worker((unsigned char *)s.c_str(),s.length(),zeros) {
     }
 
-    bool run() {
-        return run(_ctx,_result);
-
+    bool run(std::string s="") {
+        if(!_alphabet.empty()) {
+            while(true)  {
+                s += (char)_alphabet[0];
+                for(int i=0;i<s.length();i++) {
+                    for(auto c : _alphabet) {
+                        s[i] = (char)c;
+                        std::cerr << "'" << s << "'" << std::endl;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     const key_t & key() const {
@@ -50,38 +58,39 @@ public:
 private:
     static const std::vector<uint8_t>  alphabet() {
         std::vector<uint8_t> _a;
-        for(uint8_t c='a';c<='z';c++) {
+        for(uint8_t c='a';c<='c';c++) {
             if(c!='\r' && c!='\t' && c!='\n') {
                 _a.push_back(c);
-                std::cerr << std::hex << std::setw(2) << std::setfill('0') << int(c) << " ";
             }
-
         }
-        std::cerr << std::endl << " *** " << std::endl;
         return _a;
     }
 
-    bool run(const SHA_CTX & ctxi,std::string s,int r=0) {
+    bool run(const SHA_CTX & ctxi,std::string s,bool ex=true) {
 
         for(const auto & c : _alphabet) {
             SHA_CTX ctxr = ctxi;
             SHA1_Update(&ctxr,&c,1);
-            std::cerr << "'" << (s+(char)c) << "'" << std::endl;
+            std::cerr << "*"
+                         "'" << (s+static_cast<char>(c)) << "'" << std::endl;
             if( check(ctxr) ) {
-                _result = s + (char) c ;
+                _result = s + static_cast<char>(c) ;
                 return true;
             }
         }
-        std::cerr << "***" << std::endl;
 
-        for(int i='a';i<'z';i++) {
-            SHA_CTX ctxr = ctxi;
-            uint8_t c = uint8_t(i);
-            SHA1_Update(&ctxr,&c,1);
-            if(run(ctxr,s+(char)c,r+1)) {
-                return true;
+        std::cerr << " ----------- " << ex << std::endl;
+
+        if(ex) {
+            for(const auto & c : _alphabet) {
+                SHA_CTX ctxr = ctxi;
+                SHA1_Update(&ctxr,&c,1);
+                if(run(ctxr,s+static_cast<char>(c),false)) {
+                    return true;
+                }
             }
         }
+        return false;
     }
 
     bool check(const SHA_CTX & c) {
@@ -117,18 +126,18 @@ private:
     key_t _md;
 };
 
-
-const std::vector<uint8_t> Sha1Worker::_alphabet = Sha1Worker::alphabet();
+const std::vector<uint8_t> Sha1Worker::_alphabet(Sha1Worker::alphabet());
 
 int main()
 {
     // Sha1Machine sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",9);
-    Sha1Worker sm("X",9);
+    Sha1Worker sm("X",3);
     sm.run();
+    ::exit(1);
 
     std::cerr << " -- ";
     for( const auto & c : sm.key() ) {
         std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)c;
     }
-    std::cerr << std::endl << " +@+@+ " << sm.result() << " " << sm.key()  << std::endl;
+    std::cerr << std::endl << " +@+@+ " << sm.result() << " " << std::endl;
 }
