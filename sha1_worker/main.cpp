@@ -7,14 +7,17 @@
 #include <stack>
 #include <vector>
 #include <functional>
+#include <cmath>
+
+// #define SMALL
+// #define  CACHED
 
 class Sha1Worker {
+
 public:
     static const size_t FarmSize = 256;
     static const size_t KeySize = 20;
     typedef uint8_t key_t [KeySize];
-
-    bool _success = false;
     int _zeros = 0;
     std::string _prefix;
     std::string _suffix;
@@ -23,7 +26,8 @@ public:
 
 public:
     Sha1Worker(const unsigned char *data,size_t len,size_t zeros=1)
-        : _zeros(zeros) {
+        : _zeros(zeros)
+        , _totals(0) {
         SHA1_Init(&_ctx);
         SHA1_Update(&_ctx,data,len);
         _prefix=std::string((char *)data,len);
@@ -35,20 +39,43 @@ public:
     }
 
     bool run() {
-        // Generate all permutations of a given length
-        std::function<bool (std::string s,size_t)> fnc = [&](std::string s,size_t n = 0) -> bool {
-            for(const auto & c : _alphabet) {
-                s[n] = c;
-                if(n==s.length()-1) {
-                    SHA_CTX ctxi = _ctx;
-                    SHA1_Update(&ctxi,s.c_str(),s.length());
-                    if(check(ctxi)) {
+        std::function<bool (std::string s,
+                            const std::vector<SHA_CTX> &,
+                            std::vector<SHA_CTX> &,size_t,size_t & )> cached_algo =
+                [&](std::string s,const std::vector<SHA_CTX> &vi,
+            std::vector<SHA_CTX> &vo,size_t length,size_t  & total ) -> bool {
+            for(const auto & chr : _alphabet) {
+                s[length] = static_cast<char>(chr);
+                if(length == s.length()-1) {
+                    vo[total] = vi[total / _alphabet.size()];
+                    SHA1_Update(&vo[total],&chr,1);
+                    if( check(vo[total]) ) {
                         _suffix = s;
-                        std::cerr << "(" << s << ")" << std::endl;
                         return true;
                     }
-                } else {
-                    if(fnc(s,n+1)) {
+                    total++;
+                } else{
+                    if(cached_algo(s,vi,vo,length+1,total))
+                        return true;
+                }
+            }
+            return false;
+        };
+
+        std::function<bool (std::string s,const SHA_CTX &, size_t,size_t & )> plain_algo =
+                [&](std::string s,const SHA_CTX & ctx,size_t length,size_t  & total ) -> bool {
+            for(const auto & chr : _alphabet) {
+                s[length] = static_cast<char>(chr);
+                SHA_CTX cti = ctx;
+                SHA1_Update(&cti,&chr,1);
+                if(length == s.length()-1) {
+                    if( check(cti) ) {
+                        _suffix = s;
+                        return true;
+                    }
+                    total++;
+                } else{
+                    if(plain_algo(s,cti,length+1,total)) {
                         return true;
                     }
                 }
@@ -56,10 +83,24 @@ public:
             return false;
         };
 
-        for(int i=1;i<400;i++) {
-            if(fnc(std::string(i,' '),0)) {
+        std::vector<SHA_CTX> vvi(1);
+        vvi[0]=_ctx;
+        for(int i=1;i<5;i++) {
+            size_t t = 0;
+#ifdef CACHED
+            std::vector<SHA_CTX> vvo(::powl(_alphabet.size(),i));
+            if(cached_algo(std::string(i,' '),vvi,vvo,0,t)) {
+                _totals+=t;
                 return true;
             }
+            vvi.swap(vvo);
+#else
+            if(plain_algo(std::string(i,' '),_ctx,0,t)) {
+                _totals+=t;
+                return true;
+            }
+#endif
+            _totals+=t;
         }
         return false;
     }
@@ -72,10 +113,23 @@ public:
         return _prefix+_suffix;
     }
 
+    const std::string  & suffix() const {
+        return _suffix;
+    }
+
+    const size_t & totals() const {
+        return _totals;
+    }
+
 private:
+
     static const std::vector<uint8_t>  alphabet() {
         std::vector<uint8_t> _a;
-        for(uint8_t c='a';c<='c';c++) {
+#ifdef SMALL
+        for(uint8_t c='a';c<'d';c++) {
+#else
+        for(uint8_t c=1;c>0;c++) {
+#endif
             if(c!='\r' && c!='\t' && c!='\n') {
                 _a.push_back(c);
             }
@@ -84,35 +138,19 @@ private:
     }
 
     bool check(const SHA_CTX & c) {
-
-        if(_success)
-            return true;
-
         SHA_CTX ctxr = c;
         SHA1_Final(_md, &ctxr);
-
-        int n=0;
-
-        for(const auto & c : _md) {
-            if(n >=_zeros ||  ((c & 0xf0) !=0) )
-                break;
-            n++;
-
-            if(n >=_zeros ||  ((c & 0x0f) !=0) )
-                break;
-            n++;
+        for(int i=0;i<_zeros/2;i++) {
+            if(_md[i]!=0)
+                return false;
         }
-
-        if(n >= _zeros) {
-            _success = true;
-            for( const auto & c : _md ) {
-                std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)c;
-            }
-            return true;
+        if((_zeros % 2)!=0) {
+            return (_md[ _zeros / 2 ] & 0xf0) == 0x00;
         }
-        return false;
+        return true;
     }
     static const std::vector<uint8_t> _alphabet;
+    size_t _totals;
     key_t _md;
 };
 
@@ -120,14 +158,33 @@ const std::vector<uint8_t> Sha1Worker::_alphabet(Sha1Worker::alphabet());
 
 int main()
 {
-    Sha1Worker sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",9);
+    Sha1Worker sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",7);
     //Sha1Worker sm("prefiX",3);
-    bool b = sm.run();
-    std::cerr << " @@ " << b << " @@ " << std::endl;
+    time_t t0 = ::time(nullptr);
+    if(sm.run()) {
 
-    std::cerr << " -- ";
-    for( const auto & c : sm.key() ) {
-        std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+        std::cerr << sm.totals() << " in " << ::time(nullptr)-t0 << " sec " << std::endl;
+
+        std::cerr << std::endl << " +@+@+ <" << sm.result() << "> " << std::endl;
+
+        std::cerr << " -0- ";
+        for( const auto & c : sm.key() ) {
+            std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+        }
+        std::cerr << std::endl;
+
+        Sha1Worker::key_t m;
+
+        SHA_CTX c;
+        SHA1_Init(&c);
+        SHA1_Update(&c,sm.result().c_str(),sm.result().length());
+        SHA1_Final(m,&c);
+
+        std::cerr << " -1- ";
+        for( const auto & c : m ) {
+            std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+        }
+        std::cerr << std::endl;
+        std::cerr << sm.suffix().length() << std::endl;
     }
-    std::cerr << std::endl << " +@+@+ <" << sm.result() << "> " << std::endl;
 }
