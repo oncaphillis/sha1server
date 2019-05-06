@@ -6,6 +6,8 @@
 #include <map>
 #include <algorithm>
 
+#include "sha1farm.h"
+
 using namespace boost;
 using namespace boost::asio;
 using ip::tcp;
@@ -80,9 +82,12 @@ public:
     bool write(const std::string & l) {
         boost::system::error_code error;
         size_t n = asio::write( *_sck, asio::buffer( (l+'\n').c_str(),(l+'\n').size()), error );
-     if( error ) {
-            return false;
+        if( error ) {
+            std::stringstream ss;
+            ss << "asio::write failed " << error << " '" << error.message() << "'";
+            throw std::runtime_error(ss.str());
         }
+        std::cout << " << " << l << std::endl;
         return true;
     }
 
@@ -102,45 +107,109 @@ int main() {
         std::cerr << "Failed to create proper TlsClient" << std::endl;
         ::exit(1);
     }
+    try {
+        std::string l;
+        std::string auth;
+        std::auto_ptr<Sha1Farm> sha1farm;
 
-    std::string l;
+        while( (l = clt.read()) != "") {
+            std::stringstream ss(l);
+            std::vector<std::string> args;
+            std::string a;
 
-    while( (l = clt.read()) != "") {
-        std::stringstream ss(l);
-        std::vector<std::string> args;
-        std::string a;
-
-        while(std::getline(ss,a,' ')) {
-            if(!a.empty()) {
-                args.push_back(a);
+            while(std::getline(ss,a,' ')) {
+                if(!a.empty()) {
+                    args.push_back(a);
+                }
             }
-        }
-        std::cout << " >> ";
-        bool f=false;
-        for(const auto & a : args) {
-            std::cout << (f ? "" : " ") << "[" << a << "]";
-        }
-        std::cout << std::endl;
 
-        if(args[0] == "HELO") {
-            if(args.size()!=1) {
-                throw std::runtime_error("Expected 0 args");
+            std::cout << " >> ";
+            bool f=false;
+            for(const auto & a : args) {
+                std::cout << (f ? "" : " ") << "[" << a << "]";
             }
-            if(!clt.write("EHLO"))
+
+            std::cout << std::endl;
+
+            if(args[0] == "HELO") {
+                if(args.size()!=1) {
+                    throw std::runtime_error("Expected 0 args");
+                }
+                clt.write("EHLO");
+            } else if(args[0]=="POW") {
+                if(args.size()!=3) {
+                    throw std::runtime_error("Expected 2 args");
+                }
+                std::string prefix = args[1];
+                std::stringstream ss(args[2]);
+                int n=0;
+                if( !(ss >> n && ss.eof()) ) {
+                    throw std::runtime_error("Expected arg 2 to be an integer");
+                }
+                auth = args[1];
+                sha1farm.reset(new Sha1Farm(args[1],n));
+                std::cerr << "..caclulating suffix '"+args[1]+"'/" << n << "..." << std::endl;
+                sha1farm->run();
+                if(sha1farm->sucess()) {
+                    clt.write(sha1farm->suffix());
+                }
+             } else if(args[0] == "ERROR") {
                 break;
-        } else if(args[0]=="POW") {
-            if(args.size()!=3) {
-                throw std::runtime_error("Expected 2 args");
+             } else if(args[0] == "END") {
+                clt.write("OK");
+                break;
+             } else if(args[0] == "NAME") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "Sebastian Kloska");
+             } else if(args[0] == "MAILNUM") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "1");
+            } else if(args[0] == "MAIL1")  {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "sebastian.kloska@snafu.de");
+            } else if(args[0] == "SKYPE") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "oncaphillis");
+            } else if(args[0] == "BIRTHDATE") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "25.12.1962");
+            } else if(args[0] == "COUNTRY") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "Germany");
+            } else if(args[0] == "ADDRNUM") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "2");
+            } else if(args[0] == "ADDRLINE1" ) {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "Hohenstaufenstr 67");
+            } else if(args[0] == "ADDRLINE2") {
+                if(args.size()!=2) {
+                    throw std::runtime_error("Expected 1 arg");
+                }
+                clt.write(Sha1Farm::sha1(auth + args[1]) + " " + "10781 Berlin");
+            } else {
+                std::cerr << " !! " << l << std::endl;
             }
-            std::string prefix = args[1];
-            std::stringstream ss(args[2]);
-            int n=0;
-            if( !(ss >> n && ss.eof()) ) {
-                throw std::runtime_error("Expected arg 2 to be an integer");
-            }
-        } else {
-            std::cout << " >> ??? " << std::endl;
-        }
-    };
+        };
+    } catch(std::exception & ex) {
+        std::cerr << "EX:'" << ex.what() << "'" << std::endl;
+    }
+
     return 0;
 }

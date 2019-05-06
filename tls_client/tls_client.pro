@@ -8,4 +8,6 @@ QMAKE_CXXFLAGS += -std=c++17
 SOURCES += \
     main.cpp
 
-LIBS+= -lboost_system -lssl -lcrypto -lpthread
+INCLUDEPATH += $$PWD/../Sha1Farm
+
+LIBS+= -lboost_system -lssl -lcrypto -lpthread -L$$PWD/../Sha1Farm -lSha1Farm
