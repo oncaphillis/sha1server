@@ -7,22 +7,22 @@
 #include <mutex>
 #include <map>
 
-#include <boost/multiprecision/cpp_int.hpp>
+#include <boost/multiprecision/gmp.hpp>
 
 class Sha1Farm {
 public:
     static const size_t KeySize = 20;
     typedef uint8_t key_t [KeySize];
 private:
-    typedef __int128 idx_t;
-    static const idx_t streakSize = 10000000;
+    typedef boost::multiprecision::mpz_int idx_t;
+    static const long long streakSize = 10000000L;
     idx_t _currentStreak = 0;
     idx_t _totals = 0;
     std::vector<std::auto_ptr<std::thread>> _farm;
     size_t _zeros = 0;
     std::string _prefix;
     SHA_CTX _ctx;
-    std::map<long long,key_t> _results;
+    std::map<idx_t,key_t> _results;
     mutable std::mutex _mtx;
     bool _stopWatch=false;
 public:
@@ -35,31 +35,46 @@ public:
     const std::string  & prefix() const;
     const std::string  suffix() const ;
     const idx_t  totals() const;
-    const std::string  dump(const std::string & s);
+
+    static const std::string  dump(const std::string & s);
     static std::string sha1(const std::string & s);
+
     inline
     static std::string buildString(idx_t c)  {
-        char b[30];
-        return std::string(b,buildString(c,b));
+        std::string s;
+        size_t as = _alphabet.size();
+        do {
+            s+= _alphabet[ static_cast<size_t> (c % as) ];
+            c  = (c / as) - 1;
+        } while(c >= 0);
+        return s;
+    }
+
+    inline
+    static std::string & incrementString(std::string & s)  {
+        int i=0;
+        while(true) {
+            ++s[i];
+            while( s[i] == '\t' || s[i] == '\r' || s[i] == '\n'  )
+                ++s[i];
+            if(s[i]==0) {
+                s[i]=1;
+                i++;
+            } else {
+                break;
+            }
+            if(i==s.length()) {
+                s+=1;
+                break;
+            }
+        }
+        return s;
     }
 
 private:
     void watch();
     void crunch(const SHA_CTX ctx,size_t zeros);
     static const std::vector<uint8_t>  alphabet();
-
-    inline
-    static size_t buildString(idx_t c, char *b)  {
-        size_t as = _alphabet.size();
-        int o=0;
-        do {
-            b[o++] = _alphabet[ static_cast<size_t> (c % as) ];
-            c  = (c / as) - 1;
-        } while(c >= 0);
-        return o;
-    }
-
-
     static bool check(const SHA_CTX & c,key_t &m,size_t zeros);
 
     static const std::vector<uint8_t> _alphabet;

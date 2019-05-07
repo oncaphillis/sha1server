@@ -13,7 +13,9 @@ CONFIG += staticlib
 
 DEFINES += SHA1FARM_LIBRARY
 
-QMAKE_CXXFLAGS += -std=c++17 -Ofast
+QMAKE_CXXFLAGS += -std=c++11 -Ofast
+
+LIBS += -lgmp
 
 SOURCES += \
         sha1farm.cpp

@@ -77,7 +77,7 @@ const Sha1Farm::idx_t  Sha1Farm::totals() const {
 const std::string  Sha1Farm::dump(const std::string & s) {
     std::stringstream ss;
     for( auto c : s) {
-        if(c>31)
+        if(c>31 && c<0x7f)
             ss << c;
         else
             ss << "\\x" << std::hex << std::setw(2) << std::setfill('0')
@@ -176,7 +176,6 @@ void Sha1Farm::crunch(const SHA_CTX ctx,size_t zeros) {
     idx_t current = 0;
     idx_t total = 0;
     idx_t streakStart;
-    char buffer[30];
 
     while( true ) {
         {
@@ -189,11 +188,12 @@ void Sha1Farm::crunch(const SHA_CTX ctx,size_t zeros) {
             _currentStreak += streakSize;
         }
 
+        std::string str = buildString(streakStart);
+
         for(idx_t crt = streakStart;crt<streakStart+streakSize;crt++) {
-            int n = buildString(crt,buffer);
 
             SHA_CTX ctxi = ctx;
-            SHA1_Update(&ctxi,buffer,n);
+            SHA1_Update(&ctxi,str.c_str(),str.length());
             key_t k;
             if(check(ctxi,k,zeros)) {
                 std::lock_guard<std::mutex> lck(_mtx);
@@ -201,6 +201,7 @@ void Sha1Farm::crunch(const SHA_CTX ctx,size_t zeros) {
                 _totals += total;
                 return;
             }
+            incrementString(str);
             total++;
         }
     }

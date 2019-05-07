@@ -1,4 +1,5 @@
 #include "sha1farm.h"
+#include <iostream>
 
 #if 0
 
@@ -253,11 +254,12 @@ const std::vector<uint8_t> Sha1Farm::_alphabet(Sha1Farm::alphabet());
 
 int main()
 {
+
+
     Sha1Farm sm("gbcHqTYxBWjOecmSYutcoDyiMTpgVjUCSqEoucgjDiVNmXuowGkIbpwmYWdWLkpv",9);
 
     std::cerr << sizeof (long long) << std::endl;
 
-    time_t t0 = ::time(nullptr);
     if(sm.run()) {
         std::cerr << " =A= '" << sm.dump(sm.result()) << "'" << std::endl;
 
