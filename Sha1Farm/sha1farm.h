@@ -15,7 +15,7 @@ public:
     typedef uint8_t key_t [KeySize];
 private:
     typedef boost::multiprecision::mpz_int idx_t;
-    static const long long streakSize = 10000000L;
+    static const size_t  streakSize = 10000000L;
     idx_t _currentStreak = 0;
     idx_t _totals = 0;
     std::vector<std::auto_ptr<std::thread>> _farm;
@@ -44,7 +44,7 @@ public:
         std::string s;
         size_t as = _alphabet.size();
         do {
-            s+= _alphabet[ static_cast<size_t> (c % as) ];
+            s += _alphabet[ mpz_get_ui((c % as).backend().data())  ];
             c  = (c / as) - 1;
         } while(c >= 0);
         return s;
@@ -71,12 +71,29 @@ public:
         return s;
     }
 
+    inline
+    static bool check(const SHA_CTX & c,Sha1Farm::key_t &m,size_t zeros) {
+        SHA_CTX ctxr = c;
+        SHA1_Final(m, &ctxr);
+
+        size_t z2 = zeros >> 1;
+
+        for(size_t i=0;i < z2;i++) {
+            if(m[i]!=0)
+                return false;
+        }
+
+        if( (zeros & 0x1) != 0 ) {
+            return (m[ z2 ] & 0xf0) == 0x00;
+        }
+
+        return true;
+    }
+
 private:
     void watch();
     void crunch(const SHA_CTX ctx,size_t zeros);
     static const std::vector<uint8_t>  alphabet();
-    static bool check(const SHA_CTX & c,key_t &m,size_t zeros);
-
     static const std::vector<uint8_t> _alphabet;
     key_t _dummy_key {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 };

@@ -189,21 +189,19 @@ void Sha1Farm::crunch(const SHA_CTX ctx,size_t zeros) {
         }
 
         std::string str = buildString(streakStart);
-
-        for(idx_t crt = streakStart;crt<streakStart+streakSize;crt++) {
-
+        for(size_t crt = 0;crt<streakSize;crt++) {
             SHA_CTX ctxi = ctx;
             SHA1_Update(&ctxi,str.c_str(),str.length());
             key_t k;
             if(check(ctxi,k,zeros)) {
                 std::lock_guard<std::mutex> lck(_mtx);
-                std::copy(std::begin(k),std::end(k),std::begin(_results[crt]));
-                _totals += total;
+                std::copy(std::begin(k),std::end(k),std::begin(_results[streakStart+crt]));
+                _totals += crt;
                 return;
             }
             incrementString(str);
-            total++;
         }
+        total+=streakSize;
     }
 }
 
@@ -217,16 +215,4 @@ const std::vector<uint8_t>  Sha1Farm::alphabet() {
     return _a;
 }
 
-bool Sha1Farm::check(const SHA_CTX & c,Sha1Farm::key_t &m,size_t zeros) {
-    SHA_CTX ctxr = c;
-    SHA1_Final(m, &ctxr);
-    for(int i=0;i<zeros/2;i++) {
-        if(m[i]!=0)
-            return false;
-    }
-    if((zeros % 2)!=0) {
-        return (m[ zeros / 2 ] & 0xf0) == 0x00;
-    }
-    return true;
-}
 
