@@ -44,7 +44,8 @@ public:
         std::string s;
         size_t as = _alphabet.size();
         do {
-            s += _alphabet[ mpz_get_ui((c % as).backend().data())  ];
+            idx_t i = (c % as);
+            s += _alphabet[ mpz_get_ui(i.backend().data())  ];
             c  = (c / as) - 1;
         } while(c >= 0);
         return s;
