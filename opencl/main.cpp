@@ -152,7 +152,12 @@ int main()
 {
 	ret = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
 	ret = clGetDeviceIDs( platform_id, CL_DEVICE_TYPE_ALL, 1, &device_id, &ret_num_devices);
-	context = clCreateContext( NULL, 1, &device_id, NULL, NULL, &ret);
+
+    std::cerr << " === "
+              << " d:" << ret_num_devices
+              << " p:" << ret_num_platforms << std::endl;
+
+    context = clCreateContext( NULL, 1, &device_id, NULL, NULL, &ret);
 	load_source();
 	program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &ret);
 
