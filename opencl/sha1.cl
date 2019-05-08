@@ -43,7 +43,6 @@ __constant char alphabet[]={1,2,3,4,5,6,7,8,11,12,14,15,16,
                           230,231,232,233,234,235,236,237,238,239,240,241,
                           242,243,244,245,246,247,248,249,250,251,252,253,
                           254,255};
-
 __constant uint alphaSize  = 252;
 #endif
 
@@ -189,16 +188,31 @@ void sha1_crypt(uint ulen, __global char *plain_key,  __global uint *digest) {
 	}
 }
 
-bool sha1_permut(__global char *c,__global uint *digest,int zeros) {
-    for(long i = 0 ; i < 256*256*256; i++) {
-        long j = i;
-        int l = 0;
-        do {
-            c[ l++ ] = alphabet[ j % alphaSize ];
-            j = (j / alphaSize) - 1;
-            c[ l ] = '@';
-        } while(j >= 0);
-        sha1_crypt(l, c, digest);
+bool sha1_permut(__global char *c,int *length,__global uint *digest,int zeros) {
+
+    for(int i = 0 ; i < 256 ; i++) {
+        int j = 0;
+        while(true) {
+            ++c[ j ];
+            while(c[j] == '\r' || c[j] == '\n' || c[j] == '\t' ) {
+                ++c[ j ];
+            }
+            if( c[ j ] == 0 ) {
+                c[j]=1;
+                j++;
+            } else {
+                break;
+            }
+            if( j == *length ) {
+                c[j]=1;
+                (*length)++;
+                break;
+            }
+        };
+
+        c[ *length ] = '@';
+
+        sha1_crypt(*length, c, digest);
         
         int k=0;
         int n=0;
@@ -226,8 +240,10 @@ bool sha1_permut(__global char *c,__global uint *digest,int zeros) {
 __kernel void sha1_multi(__global uint *data_info,
                          __global char *plain_key,
                          __global uint *digest) {
-    for(long i = 0 ; i < 256*256; i++) {
-     if(sha1_permut(plain_key,digest,9))
+    plain_key[0]=0;
+    int length = 1;
+    for(long i = 0 ; i < 256  ; i++) {
+     if(sha1_permut(plain_key,&length,digest,6))
       return;
     }
 }
