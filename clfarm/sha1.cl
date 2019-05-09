@@ -211,3 +211,10 @@ void sha1_permut(__global char *c,__global int *length,__global uint *digest,int
     }
     return;
 }
+
+__kernel 
+void test_kernel(__global int *in0, __global int *in1, __global int *out) {
+ for(int i=0;i<10;i++) {
+  out[0]=0x128;
+ }
+}

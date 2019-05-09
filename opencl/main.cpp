@@ -139,12 +139,23 @@ void printf_result()
 
 void crypt_all()
 {
-    ret = clEnqueueWriteBuffer(command_queue, data_info, CL_TRUE, 0, sizeof(unsigned int) * 3, datai, 0, NULL, NULL);
-    ret = clEnqueueWriteBuffer(command_queue, buffer_keys, CL_TRUE, 0, PLAINTEXT_LENGTH * kpc, saved_plain, 0, NULL, NULL);
-	ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
-	ret = clFinish(command_queue);
-    ret = clEnqueueReadBuffer(command_queue, buffer_out, CL_TRUE, 0, sizeof(cl_uint) * global_work_size * 5, partial_hashes, 0, NULL, NULL);
-    ret = clEnqueueReadBuffer(command_queue, buffer_keys, CL_TRUE, 0, 63, saved_plain, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(command_queue, data_info,
+                               CL_TRUE, 0, sizeof(unsigned int) * 3, datai, 0, NULL, NULL);
+
+    ret = clEnqueueWriteBuffer(command_queue, buffer_keys,
+                               CL_TRUE, 0, PLAINTEXT_LENGTH * kpc, saved_plain, 0, NULL, NULL);
+
+    ret = clEnqueueNDRangeKernel(command_queue, kernel, 1,
+                               NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
+
+    ret = clFinish(command_queue);
+
+    ret = clEnqueueReadBuffer(command_queue, buffer_out,
+                              CL_TRUE, 0, sizeof(cl_uint) * global_work_size * 5, partial_hashes, 0, NULL, NULL);
+
+    ret = clEnqueueReadBuffer(command_queue, buffer_keys,
+                              CL_TRUE, 0, 63, saved_plain, 0, NULL, NULL);
+
     have_full_hashes = 0;
 }
 
@@ -184,7 +195,8 @@ int main()
     command_queue = clCreateCommandQueue(context, device_id, 0, &ret);
 
     time_t t0 = ::time(nullptr);
-    for(int i=0;i<1;i++) {
+
+    for(int i=0;i<256;i++) {
         create_clobj();
         std::cerr << "A '" << std::string(saved_plain,PLAINTEXT_LENGTH) << "'" << std::endl;
         crypt_all();
@@ -201,9 +213,8 @@ int main()
         }
         std::cerr << "'" << std::endl;;
     }
-    std::cerr << ::time(nullptr) - t0;
+    std::cerr << " sT==" << ::time(nullptr) - t0 << std::endl;
 
-    std::cerr << " -@- ";
     for( int i=0;i<5;i++) {
         std::cerr << std::hex << std::setw(8) << std::setfill('0')
                   << (uint32_t)partial_hashes[i];

@@ -6,7 +6,7 @@ CONFIG -= qt
 SOURCES += \
         main.cpp
 
-LIBS += /usr/lib64/libOpenCL.so.1
-
 RESOURCES += \
-    sha1.cl
+        sha1.cl
+
+LIBS += /usr/lib64/libOpenCL.so.1
