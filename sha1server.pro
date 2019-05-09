@@ -1,7 +1,7 @@
 TEMPLATE = subdirs
 
 SUBDIRS += \
-    Sha1Farm \
+    sha1_farm \
     opencl \
     sha1_worker \
     clfarm \

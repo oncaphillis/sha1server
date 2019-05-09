@@ -5,9 +5,9 @@ CONFIG -= qt
 
 QMAKE_CXXFLAGS += -std=c++11 -O3
 
-INCLUDEPATH += $$PWD/../Sha1Farm
+INCLUDEPATH += $$PWD/../sha1_farm
 
 SOURCES += \
     main.cpp
 
-LIBS += -lcrypto -lpthread -L$$PWD/../Sha1Farm -lSha1Farm -lgmp
+LIBS += -lcrypto -lpthread -L$$PWD/../sha1_farm -lSha1Farm -lgmp
