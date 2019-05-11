@@ -7,6 +7,10 @@
 #include <sstream>
 #include <fstream>
 
+cl_uchar A[10] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+cl_int   B[3]  = {1, 256,5};
+cl_uint  C[5]  = {0, 0, 0, 0, 0};
+
 class ClFarm {
 
 public:
@@ -68,9 +72,11 @@ public:
         _context.reset(new cl::Context(_devices[0]));
 
         _queue.reset(new cl::CommandQueue(*_context,_devices[0]));
-        _program.reset(new cl::Program(*_context,code));
+        _program.reset(new cl::Program(*_context,code,true,&status));
 
-        status = _program->build(_devices);
+        std::cerr << " ---- " << std::endl
+                  << status << std::endl
+                  << " ... " << std::endl;
 
         if(status != CL_SUCCESS) {
             throw std::runtime_error(_program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(_devices[0]));
@@ -100,26 +106,37 @@ public:
 
         //write arrays A and B to the device
 
-        cl_int A[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        cl_int B[] = {10, 11, 12, 10, 11, 12, 10, 11, 12, 10};
-        cl_int C[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-        _queue->enqueueWriteBuffer(buffer_A,CL_TRUE,0,sizeof(cl_int)*10,A);
-        _queue->enqueueWriteBuffer(buffer_B,CL_TRUE,0,sizeof(cl_int)*10,B);
+        _queue->enqueueWriteBuffer(buffer_A,CL_TRUE,0,sizeof(char)   * 10,A);
+        _queue->enqueueWriteBuffer(buffer_B,CL_TRUE,0,sizeof(cl_int) * 3,B);
+        _queue->enqueueWriteBuffer(buffer_C,CL_TRUE,0,sizeof(cl_uint)* 5,C);
 
         cl::Kernel test_kernel(*_program,"test_kernel");
 
         test_kernel.setArg(0,buffer_A);
         test_kernel.setArg(1,buffer_B);
         test_kernel.setArg(2,buffer_C);
+        _queue->enqueueNDRangeKernel(test_kernel,cl::NullRange,cl::NDRange(2048),cl::NDRange(4));
 
-        _queue->enqueueNDRangeKernel(test_kernel,cl::NullRange,cl::NDRange(128),cl::NDRange(4));
+        _queue->enqueueReadBuffer(buffer_A,CL_TRUE,0,sizeof(cl_uchar)*10,A);
+        _queue->enqueueReadBuffer(buffer_B,CL_TRUE,0,sizeof(cl_int)*3,B);
+        _queue->enqueueReadBuffer(buffer_C,CL_TRUE,0,sizeof(cl_uint)*5,C);
+
         _queue->finish();
-        _queue->enqueueReadBuffer(buffer_C,CL_TRUE,0,sizeof(cl_int)*10,C);
+
+        for(auto a : A) {
+            std::cerr << std::hex << "\\x" << static_cast<unsigned int>(a);
+        }
+        std::cerr << " - ";
+
+        for(auto b : B) {
+            std::cerr << std::hex << static_cast<unsigned int>(b) << " :: ";
+        }
 
         for(auto c : C) {
-            std::cerr << c << "::";
+            std::cerr << std::hex << std::setw(8) << std::setfill('0') << std::hex <<c;
         }
+
         std::cerr << std::endl;
     }
 private:
@@ -151,6 +168,10 @@ int main() {
     std::cerr << "*1*" <<std::endl;
     ClFarm f(fs,"test_kernel");
     std::cerr << "*2*" <<std::endl;
-    f.run();
+
+    for(int i=0;i<100;i++) {
+        f.run();
+    }
+
     return 0;
 }
